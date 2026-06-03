@@ -58,14 +58,20 @@ function MainApp() {
   // Load from LocalStorage or Default
   useEffect(() => {
     const saved = localStorage.getItem("PRJ_LIFECYCLE_LEDGER");
+    const demoIds = ["proj_901_westgrid", "proj_902_kanopipeline", "proj_903_lekkitower", "proj_904_ibadandrain"];
     if (saved) {
       try {
-        setProjects(JSON.parse(saved));
+        const parsed = JSON.parse(saved) as Project[];
+        const filtered = parsed.filter(p => !demoIds.includes(p.id));
+        setProjects(filtered);
+        if (filtered.length !== parsed.length) {
+          localStorage.setItem("PRJ_LIFECYCLE_LEDGER", JSON.stringify(filtered));
+        }
       } catch (e) {
-        setProjects(INITIAL_PROJECTS);
+        setProjects([]);
       }
     } else {
-      setProjects(INITIAL_PROJECTS);
+      setProjects([]);
     }
   }, []);
 
@@ -656,20 +662,6 @@ function MainApp() {
               className="text-slate-400 hover:text-white transition-colors cursor-pointer text-[11px] font-mono"
             >
               Export Backup (JSON)
-            </button>
-            <span>•</span>
-            <button 
-              onClick={handleResetToDefault}
-              className="text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer text-[11px] font-mono"
-            >
-              Reset Demo Data
-            </button>
-            <span>•</span>
-            <button 
-              onClick={handleClearAllData}
-              className="text-rose-500 hover:text-rose-400 font-bold transition-colors cursor-pointer text-[11px] font-mono"
-            >
-              Clear Database (Purge Demo)
             </button>
           </div>
         </footer>

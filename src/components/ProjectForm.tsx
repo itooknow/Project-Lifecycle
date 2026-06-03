@@ -136,10 +136,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
     <div id="retroactive-project-form-card" className="glass-panel rounded-3xl p-6 mb-6 animate-fadeIn">
       <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
         <div>
-          <h3 className="text-base font-sans font-black text-white">Retroactively Add Past Project Lifecycle</h3>
-          <p className="text-xs text-slate-405 mt-1">
-            Build projects retroactively from Stage 1 (RFQ) up to Stage 3 (Contract Execution setup) synchronously.
-          </p>
+          <h3 className="text-base font-sans font-black text-white">Add Project</h3>
         </div>
         <button 
           onClick={onCancel}
@@ -147,36 +144,6 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
         >
           <X size={18} />
         </button>
-      </div>
-
-      {/* Preset configurations to speed up testing */}
-      <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4 mb-6 flex flex-col md:flex-row items-baseline gap-4 animate-fadeIn">
-        <span className="text-xs font-mono font-bold text-indigo-300 flex items-center gap-1.5 whitespace-nowrap">
-          <Sparkles size={14} /> Quick Demo Presets:
-        </span>
-        <div className="flex flex-wrap gap-2 text-xs">
-          <button 
-            type="button"
-            onClick={() => applyPresetPlaceholder("power")}
-            className="px-2.5 py-1 bg-[#1e293b] border border-indigo-500/20 text-indigo-300 hover:border-indigo-400 hover:text-white rounded-md transition-all cursor-pointer"
-          >
-            S3: Kaduna Substation (PO stage)
-          </button>
-          <button 
-            type="button"
-            onClick={() => applyPresetPlaceholder("pipeline")}
-            className="px-2.5 py-1 bg-[#1e293b] border border-indigo-500/20 text-indigo-300 hover:border-indigo-400 hover:text-white rounded-md transition-all cursor-pointer"
-          >
-            S2: Port Harcourt Pipeline (PFI stage)
-          </button>
-          <button 
-            type="button"
-            onClick={() => applyPresetPlaceholder("commercial")}
-            className="px-2.5 py-1 bg-[#1e293b] border border-indigo-500/20 text-indigo-300 hover:border-indigo-400 hover:text-white rounded-md transition-all cursor-pointer"
-          >
-            S1: Lagos Earthing (RFQ stage)
-          </button>
-        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -274,11 +241,11 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
         {/* Stage 1 Config */}
         <div className="border-t border-white/10 pt-5">
           <h4 className="text-xs font-mono font-bold text-indigo-400 uppercase tracking-widest mb-4">
-            Stage 1: RFQ Metrics Check (Mandatory)
+            Stage 1: RFQ/BOQ
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs text-slate-350 mb-1.5 font-medium">RFQ Receiving Date</label>
+              <label className="block text-xs text-slate-350 mb-1.5 font-medium">RFQ/BOQ Receiving Date</label>
               <input
                 type="date"
                 value={rfqDate}
@@ -304,7 +271,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
         <div className="border-t border-white/10 pt-5">
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-xs font-mono font-bold text-indigo-400 uppercase tracking-widest">
-              Stage 2: Proforma Invoice Details (Optional Retroactive)
+              Stage 2: Proforma Invoice Details
             </h4>
             <span className="text-[10px] font-mono text-slate-400">Leave blank if pending</span>
           </div>
@@ -345,7 +312,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
         <div className="border-t border-white/10 pt-5">
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-xs font-mono font-bold text-indigo-400 uppercase tracking-widest">
-              Stage 3: Customer PO & Move Order requisition (Optional Retroactive)
+              Stage 3: PO, MO or MRF
             </h4>
             <span className="text-[10px] font-mono text-slate-400">Requires Stage 2 validation first</span>
           </div>
@@ -415,7 +382,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
             type="submit"
             className="px-5 py-2.5 bg-indigo-600 font-sans font-semibold text-xs text-white rounded-xl hover:bg-indigo-505 transition shadow-xs flex items-center gap-1.5 cursor-pointer"
           >
-            <PlusCircle size={15} /> Save Past Records Retroactively
+            <PlusCircle size={15} /> Submit
           </button>
         </div>
       </form>

@@ -65,6 +65,8 @@ export interface InvoiceEntry {
   submissionDate: string;
   jccNumber: string;
   status: InvoiceStatus;
+  jccApprovedDate?: string;
+  paymentDueDays?: number;
 }
 
 export interface PaymentAdviceEntry {

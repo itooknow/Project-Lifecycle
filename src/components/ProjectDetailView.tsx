@@ -73,6 +73,8 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
   const [newInvDate, setNewInvDate] = useState("");
   const [newInvJcc, setNewInvJcc] = useState("");
   const [newInvStatus, setNewInvStatus] = useState<InvoiceStatus>(InvoiceStatus.SUBMITTED);
+  const [jccApprovedDate, setJccApprovedDate] = useState("");
+  const [paymentDueDays, setPaymentDueDays] = useState<number>(30);
 
   const [newAdviceNo, setNewAdviceNo] = useState("");
   const [newAdvicePo, setNewAdvicePo] = useState(project.poMo?.poNumber || "");
@@ -261,6 +263,8 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
       submissionDate: newInvDate || new Date().toISOString().split("T")[0],
       jccNumber: newInvJcc,
       status: newInvStatus,
+      jccApprovedDate: newInvStatus === InvoiceStatus.APPROVED ? (jccApprovedDate || new Date().toISOString().split("T")[0]) : undefined,
+      paymentDueDays: newInvStatus === InvoiceStatus.APPROVED ? (paymentDueDays || 30) : undefined
     };
 
     const updated: Project = {
@@ -272,13 +276,23 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
     setNewInvAmt("");
     setNewInvDate("");
     setNewInvJcc("");
+    setJccApprovedDate("");
+    setPaymentDueDays(30);
   };
 
   const handleUpdateInvoiceStatus = (invId: string, status: InvoiceStatus) => {
     if (!canEditFinancials) return;
-    const updatedInvoices = project.invoices.map(inv => 
-      inv.id === invId ? { ...inv, status } : inv
-    );
+    const updatedInvoices = project.invoices.map(inv => {
+      if (inv.id === invId) {
+        return { 
+          ...inv, 
+          status,
+          jccApprovedDate: status === InvoiceStatus.APPROVED ? (inv.jccApprovedDate || new Date().toISOString().split("T")[0]) : inv.jccApprovedDate,
+          paymentDueDays: inv.paymentDueDays !== undefined ? inv.paymentDueDays : 30
+        };
+      }
+      return inv;
+    });
     const updated: Project = {
       ...project,
       invoices: updatedInvoices
@@ -1284,6 +1298,38 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
                     <option value={InvoiceStatus.DISPUTED}>Disputed / Rejected</option>
                   </select>
                 </div>
+
+                {newInvStatus === InvoiceStatus.APPROVED && (
+                  <div className="border border-emerald-500/15 bg-emerald-500/5 p-3 rounded-xl space-y-2.5 animate-fadeIn">
+                    <span className="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-widest block">
+                      Approved Invoice Countdown Setup
+                    </span>
+                    <div>
+                      <label className="block text-[10px] text-slate-400 mb-1">JCC Approval Date</label>
+                      <input
+                        type="date"
+                        value={jccApprovedDate}
+                        onChange={(e) => setJccApprovedDate(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-950/40 border border-white/10 rounded-xl text-xs text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-slate-400 mb-1">Payment Term (Countdown)</label>
+                      <select
+                        value={paymentDueDays}
+                        onChange={(e) => setPaymentDueDays(parseInt(e.target.value) || 30)}
+                        className="w-full px-3 py-2 bg-slate-950 border border-white/10 rounded-xl text-xs text-white font-sans"
+                      >
+                        <option value={15}>15 Days Countdown</option>
+                        <option value={30}>30 Days Countdown</option>
+                        <option value={45}>45 Days Countdown</option>
+                        <option value={60}>60 Days Countdown</option>
+                        <option value={90}>90 Days Countdown</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
                 <button
                   type="submit"
                   className="w-full py-2.5 bg-indigo-600 text-xs font-sans font-bold text-white rounded-xl hover:bg-indigo-500 transition-colors"
@@ -1309,21 +1355,62 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
               </div>
             ) : (
               <div className="space-y-2">
-                {project.invoices.map((inv) => (
-                  <div key={inv.id} className="flex items-center justify-between p-3 bg-white/2 border border-white/5 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-300">
-                        <FileText size={16} />
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold font-mono text-white">
-                          Code: {inv.invoiceNumber} | <strong className="text-slate-200">{usdFormatter.format(inv.invoiceAmount)}</strong>
+                {project.invoices.map((inv) => {
+                  const getCountdownInfo = () => {
+                    if (inv.status !== InvoiceStatus.APPROVED) return null;
+                    const approvedDateStr = inv.jccApprovedDate || inv.submissionDate;
+                    if (!approvedDateStr) return null;
+
+                    const approvedDate = new Date(approvedDateStr);
+                    const terms = inv.paymentDueDays !== undefined ? inv.paymentDueDays : 30;
+
+                    const dueDate = new Date(approvedDate);
+                    dueDate.setDate(dueDate.getDate() + terms);
+
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    dueDate.setHours(0, 0, 0, 0);
+
+                    const diffTime = dueDate.getTime() - today.getTime();
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                    return {
+                      daysLeft: diffDays,
+                      text: diffDays > 0 ? `${diffDays} days left` : diffDays === 0 ? "Due today" : `${Math.abs(diffDays)} days overdue`,
+                      isOverdue: diffDays < 0,
+                      dueDateStr: dueDate.toISOString().split('T')[0]
+                    };
+                  };
+
+                  const countdown = getCountdownInfo();
+
+                  return (
+                    <div key={inv.id} className="flex items-center justify-between p-3 bg-white/2 border border-white/5 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-300">
+                          <FileText size={16} />
                         </div>
-                        <div className="text-[10px] text-slate-405 font-mono mt-0.5">
-                          Submitted: {inv.submissionDate} {inv.jccNumber && `| JCC Check No: ${inv.jccNumber}`}
+                        <div>
+                          <div className="text-xs font-bold font-mono text-white">
+                            Code: {inv.invoiceNumber} | <strong className="text-slate-200">{usdFormatter.format(inv.invoiceAmount)}</strong>
+                          </div>
+                          <div className="text-[10px] text-slate-405 font-mono mt-0.5">
+                            Submitted: {inv.submissionDate} {inv.jccNumber && `| JCC Check No: ${inv.jccNumber}`}
+                          </div>
+                          {countdown && (
+                            <div className={`mt-1.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[9px] font-mono font-bold border ${
+                              countdown.isOverdue 
+                                ? "bg-rose-500/10 text-rose-300 border-rose-500/20" 
+                                : countdown.daysLeft === 0
+                                  ? "bg-amber-500/10 text-amber-300 border-amber-500/20"
+                                  : "bg-emerald-500/10 text-emerald-300 border-emerald-500/20"
+                            }`}>
+                              <span>⏱️ Countdown: {countdown.text}</span>
+                              <span className="opacity-60 text-[8.5px]">({countdown.dueDateStr})</span>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </div>
                     <div className="flex items-center gap-3">
                       <select
                         disabled={!canEditFinancials}
@@ -1347,8 +1434,9 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
                       )}
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
+            </div>
             )}
           </div>
         </div>
