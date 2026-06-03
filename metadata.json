@@ -1,0 +1,6 @@
+{
+  "name": "Project Lifecycle Tracker",
+  "description": "Comprehensive tracking of projects along their lifecycle: RFQ, PFI, PO/MO, Grandular Execution, Milestone Invoices with JCC, and final Payment Advice reconciliation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
