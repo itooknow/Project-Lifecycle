@@ -145,6 +145,10 @@ export interface User {
   createdAt: string;
   twoFactorEnabled?: boolean;
   twoFactorSecret?: string;
+  avatarUrl?: string;
+  fullName?: string;
+  phoneNumber?: string;
+  bio?: string;
 }
 
 export interface UserSession {

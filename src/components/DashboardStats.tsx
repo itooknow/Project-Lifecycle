@@ -209,7 +209,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
             <Clock size={22} id="icon-clock" />
           </div>
           <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">
-            Pending Paid
+            Outstanding Payment
           </span>
         </div>
         <div className="flex items-baseline gap-2">

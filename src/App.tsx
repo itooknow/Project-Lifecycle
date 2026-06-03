@@ -474,13 +474,13 @@ function MainApp() {
               <div>
                 <h1 className="text-xl font-sans font-extrabold text-white tracking-tight">Active Financial Portal</h1>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Refined by <strong className="text-indigo-400 font-semibold">{currentUser?.role}</strong> role clearance. Click metrics and charts to filter lists.
+                  Click metrics and charts to filter lists.
                 </p>
               </div>
 
               {/* Time select filter for payouts */}
               <div className="flex items-center gap-3.5" id="time-filter-block">
-                <span className="text-xs font-mono text-slate-400">Payout Advice Lookup:</span>
+                <span className="text-xs font-mono text-slate-400">Payment Advice Lookup:</span>
                 <div className="flex bg-white/5 p-1 border border-white/10 rounded-xl backdrop-blur-md">
                   {[
                     { key: "all", label: "All Time" },

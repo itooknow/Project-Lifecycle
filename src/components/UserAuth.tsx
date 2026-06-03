@@ -17,10 +17,14 @@ const DEFAULT_ACCOUNTS = [
   {
     id: "user_admin",
     username: "cilapptor",
-    email: "cilapptor@constructionledger.gov",
+    email: "cilapptor@camouc.com",
     role: "Administrator" as UserRole,
     passwordPlain: "Cilapptor#Secure_2026!",
-    description: "Full controls across projects, financial workflows, system deletion, and logs."
+    description: "Full controls across projects, financial workflows, system deletion, and logs.",
+    fullName: "Chief Administrator",
+    avatarUrl: "",
+    phoneNumber: "+1 (555) 019-2831",
+    bio: "Head system security clearing official for Camo UC ledger audits."
   }
 ];
 
@@ -33,6 +37,10 @@ export interface LocalAccount {
   description: string;
   twoFactorEnabled: boolean;
   twoFactorSecret: string;
+  fullName?: string;
+  avatarUrl?: string;
+  phoneNumber?: string;
+  bio?: string;
 }
 
 // Helper to generate a valid Base32 secret (A-Z, 2-7) of 16 characters from username
@@ -163,7 +171,7 @@ function getSavedAccounts(): LocalAccount[] {
               ...acc,
               id: "user_admin",
               username: "cilapptor",
-              email: "cilapptor@constructionledger.gov",
+              email: "cilapptor@camouc.com",
               role: "Administrator" as UserRole,
               passwordPlain: acc.passwordPlain === "admin123" ? "Cilapptor#Secure_2026!" : acc.passwordPlain,
               twoFactorSecret: generateBase32Secret("cilapptor")
@@ -177,12 +185,16 @@ function getSavedAccounts(): LocalAccount[] {
         updated.push({
           id: "user_admin",
           username: "cilapptor",
-          email: "cilapptor@constructionledger.gov",
+          email: "cilapptor@camouc.com",
           role: "Administrator" as UserRole,
           passwordPlain: "Cilapptor#Secure_2026!",
           description: "Full controls across projects, financial workflows, system deletion, and logs.",
           twoFactorEnabled: false,
-          twoFactorSecret: generateBase32Secret("cilapptor")
+          twoFactorSecret: generateBase32Secret("cilapptor"),
+          fullName: "Chief Administrator",
+          avatarUrl: "",
+          phoneNumber: "+1 (555) 019-2831",
+          bio: "Head system security clearing official for Camo UC ledger audits."
         });
         migrated = true;
       }
@@ -195,8 +207,12 @@ function getSavedAccounts(): LocalAccount[] {
       migrated = true;
     }
 
-    // Standard standard 2FA base32 check
+    // Standard standard 2FA base32 check & email migration
     updated = updated.map(acc => {
+      if (acc.email && acc.email.endsWith("@constructionledger.gov")) {
+        acc.email = acc.email.replace("@constructionledger.gov", "@camouc.com");
+        migrated = true;
+      }
       if (!acc.twoFactorSecret || acc.twoFactorSecret.includes("_") || /[^A-Z2-7]/.test(acc.twoFactorSecret) || acc.twoFactorSecret.length !== 16) {
         acc.twoFactorSecret = generateBase32Secret(acc.username);
         migrated = true;
@@ -233,6 +249,7 @@ interface AuthContextType {
   updatePassword: (newPasswordPlain: string) => Promise<void>;
   toggleTwoFactor: (enabled: boolean, secret: string) => Promise<void>;
   getTwoFactorSecret: () => string;
+  updateProfile: (fullName: string, email: string, avatarUrl: string, phoneNumber: string, bio: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -281,7 +298,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             email: match.email,
             role: match.role,
             twoFactorEnabled: match.twoFactorEnabled,
-            twoFactorSecret: match.twoFactorSecret
+            twoFactorSecret: match.twoFactorSecret,
+            fullName: match.fullName,
+            avatarUrl: match.avatarUrl,
+            phoneNumber: match.phoneNumber,
+            bio: match.bio
           };
           
           setCurrentUser(updatedUser);
@@ -328,7 +349,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       passwordHash: pHash,
       createdAt: new Date().toISOString(),
       twoFactorEnabled: account.twoFactorEnabled,
-      twoFactorSecret: account.twoFactorSecret
+      twoFactorSecret: account.twoFactorSecret,
+      fullName: account.fullName,
+      avatarUrl: account.avatarUrl,
+      phoneNumber: account.phoneNumber,
+      bio: account.bio
     };
 
     const session: UserSession = {
@@ -363,7 +388,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       passwordHash: pHash,
       createdAt: new Date().toISOString(),
       twoFactorEnabled: account.twoFactorEnabled,
-      twoFactorSecret: account.twoFactorSecret
+      twoFactorSecret: account.twoFactorSecret,
+      fullName: account.fullName,
+      avatarUrl: account.avatarUrl,
+      phoneNumber: account.phoneNumber,
+      bio: account.bio
     };
 
     const session: UserSession = {
@@ -442,6 +471,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return currentUser.twoFactorSecret || ("CAMOPLT_" + currentUser.username.toUpperCase() + "_SECRET_KEY");
   };
 
+  const updateProfile = async (
+    fullName: string,
+    email: string,
+    avatarUrl: string,
+    phoneNumber: string,
+    bio: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    if (!currentUser) return { success: false, error: "No authenticated session user" };
+
+    const emailClean = email.trim().toLowerCase();
+    
+    // Validate domain
+    if (!/^[a-zA-Z0-9._%+-]+@camouc\.com$/.test(emailClean)) {
+      return { success: false, error: "Security Policy error: Email must end with @camouc.com" };
+    }
+
+    const accounts = getSavedAccounts();
+    // Check email uniqueness
+    const emailConflict = accounts.some(a => a.id !== currentUser.id && a.email.toLowerCase() === emailClean);
+    if (emailConflict) {
+      return { success: false, error: "Conflict: This email is already assigned to another account." };
+    }
+
+    const updated = accounts.map(acc => {
+      if (acc.id === currentUser.id) {
+        return {
+          ...acc,
+          fullName,
+          email: emailClean,
+          avatarUrl,
+          phoneNumber,
+          bio
+        };
+      }
+      return acc;
+    });
+    saveAccounts(updated);
+
+    const updatedUser: User = {
+      ...currentUser,
+      fullName,
+      email: emailClean,
+      avatarUrl,
+      phoneNumber,
+      bio
+    };
+    setCurrentUser(updatedUser);
+
+    const stored = localStorage.getItem("PRJ_LEDGER_AUTH_SESSION");
+    if (stored) {
+      try {
+        const session: UserSession = JSON.parse(stored);
+        session.user = updatedUser;
+        localStorage.setItem("PRJ_LEDGER_AUTH_SESSION", JSON.stringify(session));
+      } catch (err) {}
+    }
+
+    return { success: true };
+  };
+
   const hasPermission = (
     action: "view" | "create" | "edit" | "delete",
     target: "projects" | "financials" | "tasks" | "documents"
@@ -486,7 +575,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       hasPermission,
       updatePassword,
       toggleTwoFactor,
-      getTwoFactorSecret
+      getTwoFactorSecret,
+      updateProfile
     }}>
       {!currentUser ? (
         <LoginScreen onLoginSuccess={async (u, p) => { await login(u, p); }} />
@@ -995,11 +1085,11 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
 
 // UserNavWidget Dropdown & Control Modal
 export const UserNavWidget: React.FC = () => {
-  const { currentUser, logout, updatePassword, toggleTwoFactor, getTwoFactorSecret } = useAuth();
+  const { currentUser, logout, updatePassword, toggleTwoFactor, getTwoFactorSecret, updateProfile } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<"PASS" | "MFA" | "USERS">("PASS");
+  const [activeTab, setActiveTab] = useState<"PROFILE" | "PASS" | "MFA" | "USERS">("PROFILE");
   const [curPass, setCurPass] = useState("");
   const [newPass, setNewPass] = useState("");
   const [confPass, setConfPass] = useState("");
@@ -1012,6 +1102,51 @@ export const UserNavWidget: React.FC = () => {
 
   const [alertError, setAlertError] = useState<string | null>(null);
   const [alertSuccess, setAlertSuccess] = useState<string | null>(null);
+
+  // Profile states
+  const [profFullName, setProfFullName] = useState("");
+  const [profEmail, setProfEmail] = useState("");
+  const [profAvatarUrl, setProfAvatarUrl] = useState("");
+  const [profPhone, setProfPhone] = useState("");
+  const [profBio, setProfBio] = useState("");
+  const [profSaving, setProfSaving] = useState(false);
+
+  useEffect(() => {
+    if (currentUser) {
+      setProfFullName(currentUser.fullName || "");
+      setProfEmail(currentUser.email || "");
+      setProfAvatarUrl(currentUser.avatarUrl || "");
+      setProfPhone(currentUser.phoneNumber || "");
+      setProfBio(currentUser.bio || "");
+    }
+  }, [currentUser, modalOpen]);
+
+  const PRESET_AVATARS = [
+    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop",
+    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop",
+    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop",
+    "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop",
+    "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&h=150&fit=crop",
+  ];
+
+  const handleProfileUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAlertError(null);
+    setAlertSuccess(null);
+    setProfSaving(true);
+    try {
+      const res = await updateProfile(profFullName, profEmail, profAvatarUrl, profPhone, profBio);
+      if (!res.success) {
+        setAlertError(res.error || "Profile update failed.");
+      } else {
+        setAlertSuccess("Profile credentials and details synchronized successfully.");
+      }
+    } catch (err: any) {
+      setAlertError(err?.message || "An unexpected error occurred.");
+    } finally {
+      setProfSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (!modalOpen || activeTab !== "MFA" || !mfaSecret) return;
@@ -1114,11 +1249,22 @@ export const UserNavWidget: React.FC = () => {
         onClick={() => setDropdownOpen(!dropdownOpen)}
         className="flex items-center gap-2 bg-white/5 border border-white/10 hover:bg-white/10 px-3 py-1.5 rounded-xl transition duration-150 cursor-pointer focus:outline-hidden"
       >
-        <div className="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center font-mono font-bold text-xs text-indigo-300">
-          {currentUser.username[0].toUpperCase()}
-        </div>
+        {currentUser.avatarUrl ? (
+          <img 
+            src={currentUser.avatarUrl} 
+            alt={currentUser.username} 
+            className="w-7 h-7 rounded-lg object-cover ring-1 ring-white/15"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <div className="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center font-mono font-bold text-xs text-indigo-300">
+            {currentUser.username[0].toUpperCase()}
+          </div>
+        )}
         <div className="hidden sm:block text-left">
-          <div className="text-xs font-bold text-white leading-tight">{currentUser.username}</div>
+          <div className="text-xs font-bold text-white leading-tight">
+            {currentUser.fullName || currentUser.username}
+          </div>
           <span className="text-[8px] font-mono border border-indigo-500/30 px-1 py-[1px] text-indigo-350 bg-indigo-500/5 rounded-full uppercase">
             {currentUser.role}
           </span>
@@ -1129,22 +1275,27 @@ export const UserNavWidget: React.FC = () => {
       {dropdownOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)}></div>
-          <div className="absolute right-0 mt-2 w-52 bg-slate-900 border border-white/10 rounded-2xl p-2 shadow-2xl z-50 animate-fadeIn">
-            <div className="px-2.5 py-1.5 border-b border-white/10 mb-1">
-              <span className="text-[8.5px] uppercase font-mono font-bold text-slate-400 block truncate">Cleared clearance:</span>
-              <span className="text-xs font-extrabold text-slate-200 block truncate">{currentUser.email}</span>
+          <div className="absolute right-0 mt-2 w-56 bg-slate-900 border border-white/10 rounded-2xl p-2 shadow-2xl z-50 animate-fadeIn text-left">
+            <div className="px-2.5 py-1.5 border-b border-white/10 mb-1 flex items-center gap-2">
+              {currentUser.avatarUrl && (
+                <img src={currentUser.avatarUrl} alt="" className="w-6 h-6 rounded-md object-cover" referrerPolicy="no-referrer" />
+              )}
+              <div className="overflow-hidden">
+                <span className="text-[8.5px] uppercase font-mono font-bold text-slate-450 block leading-tight">Cleared Profile:</span>
+                <span className="text-[11px] font-extrabold text-slate-200 block truncate leading-tight">{currentUser.email}</span>
+              </div>
             </div>
             
             <button
-              onClick={() => { setDropdownOpen(false); setModalOpen(true); }}
+              onClick={() => { setDropdownOpen(false); setModalOpen(true); setActiveTab("PROFILE"); }}
               className="w-full flex items-center gap-2 hover:bg-white/5 p-2 rounded-xl text-xs font-sans font-bold text-indigo-300 transition text-left cursor-pointer"
             >
-              <Settings size={13} /> Account Security Center
+              <Settings size={13} /> User Profile & Security
             </button>
 
             <button
               onClick={() => logout()}
-              className="w-full flex items-center gap-2 text-rose-400 hover:bg-rose-500/10 p-2 rounded-xl text-xs font-sans font-bold transition text-left cursor-pointer"
+              className="w-full flex items-center gap-2 text-rose-450 hover:bg-rose-500/10 p-2 rounded-xl text-xs font-sans font-bold transition text-left cursor-pointer"
             >
               <LogOut size={13} /> Sign Out Session
             </button>
@@ -1155,12 +1306,12 @@ export const UserNavWidget: React.FC = () => {
       {/* SECURITY PROFILE SHIELD MODULE */}
       {modalOpen && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs animate-fadeIn">
-          <div className="w-full max-w-sm bg-[#0f172a] border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+          <div className="w-full max-w-md bg-[#0f172a] border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
             
             <div className="bg-slate-900 border-b border-white/10 px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-2 text-white">
-                <Shield className="text-emerald-450" size={16} />
-                <span className="text-xs font-black font-sans">Account Security Center</span>
+                <Shield className="text-indigo-455" size={16} />
+                <span className="text-xs font-black font-sans">User Account & Profile</span>
               </div>
               <button onClick={() => setModalOpen(false)} className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-white rounded-lg hover:bg-white/5">
                 <X size={14} />
@@ -1168,6 +1319,12 @@ export const UserNavWidget: React.FC = () => {
             </div>
 
             <div className="flex bg-slate-900/50 border-b border-white/5 p-1">
+              <button
+                onClick={() => { setActiveTab("PROFILE"); setAlertError(null); setAlertSuccess(null); }}
+                className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition ${activeTab === "PROFILE" ? "bg-white/5 text-white" : "text-slate-400"}`}
+              >
+                👤 Profile
+              </button>
               <button
                 onClick={() => { setActiveTab("PASS"); setAlertError(null); setAlertSuccess(null); }}
                 className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition ${activeTab === "PASS" ? "bg-white/5 text-white" : "text-slate-400"}`}
@@ -1193,6 +1350,130 @@ export const UserNavWidget: React.FC = () => {
             <div className="p-4 flex-1 overflow-y-auto space-y-3.5 text-left text-xs">
               {alertError && <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-350 rounded-xl leading-tight text-[11px]">{alertError}</div>}
               {alertSuccess && <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 rounded-xl leading-tight text-[11px]">{alertSuccess}</div>}
+
+              {activeTab === "PROFILE" && (
+                <form onSubmit={handleProfileUpdate} className="space-y-3.5">
+                  <div className="flex flex-col items-center gap-2.5 pb-2">
+                    {/* Current Avatar Photo */}
+                    <div className="relative group">
+                      {profAvatarUrl ? (
+                        <img 
+                          src={profAvatarUrl} 
+                          alt="Profile Avatar" 
+                          className="w-16 h-16 rounded-2xl object-cover ring-2 ring-indigo-500/50"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center font-mono font-bold text-xl text-indigo-300 ring-2 ring-indigo-500/20">
+                          {currentUser.username[0].toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Preset Avatars Selection */}
+                    <div className="w-full">
+                      <label className="block text-[8.5px] font-mono text-center text-slate-400 uppercase mb-1 font-extrabold">Select Preset Avatar</label>
+                      <div className="flex justify-center gap-2 overflow-x-auto py-1">
+                        {PRESET_AVATARS.map((url, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => setProfAvatarUrl(url)}
+                            className={`w-8 h-8 rounded-lg overflow-hidden border-2 transition ${profAvatarUrl === url ? "border-indigo-500 scale-105" : "border-transparent opacity-80 hover:opacity-100"}`}
+                          >
+                            <img src={url} alt={`Preset ${i}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Custom Image Upload or File Picker */}
+                    <div className="w-full text-center">
+                      <span className="text-[8.5px] font-mono text-slate-450 block mb-1">...or upload custom profile photo:</span>
+                      <label className="inline-flex items-center gap-1 bg-slate-800 hover:bg-slate-700 border border-white/5 text-slate-200 text-[10px] font-bold py-1 px-2.5 rounded-lg cursor-pointer transition">
+                        <span className="font-sans">Choose Photo</span>
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          className="hidden" 
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              if (file.size > 2 * 1024 * 1024) {
+                                setAlertError("File size cannot exceed 2MB.");
+                                return;
+                              }
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                if (typeof reader.result === "string") {
+                                  setProfAvatarUrl(reader.result);
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[8.5px] font-mono uppercase mb-1 font-bold text-slate-400">Full Name</label>
+                    <input
+                      type="text"
+                      value={profFullName}
+                      onChange={(e) => setProfFullName(e.target.value)}
+                      placeholder="Enter full name"
+                      className="w-full px-3 py-2 bg-slate-950 border border-white/10 rounded-xl text-xs text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[8.5px] font-mono uppercase mb-1 font-bold text-slate-400">Email Address (Naming @camouc.com)</label>
+                    <input
+                      type="email"
+                      required
+                      value={profEmail}
+                      onChange={(e) => setProfEmail(e.target.value)}
+                      placeholder="username@camouc.com"
+                      className="w-full px-3 py-2 bg-slate-950 border border-white/10 rounded-xl text-xs text-white"
+                    />
+                    <span className="text-[8.5px] text-slate-400 mt-1 block leading-normal">
+                      System policy: Emails must follow the <strong className="text-indigo-400">camouc.com</strong> naming convention.
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-[8.5px] font-mono uppercase mb-1 font-bold text-slate-400">Phone Number</label>
+                    <input
+                      type="text"
+                      value={profPhone}
+                      onChange={(e) => setProfPhone(e.target.value)}
+                      placeholder="+1 (555) 000-0000"
+                      className="w-full px-3 py-2 bg-slate-950 border border-white/10 rounded-xl text-xs text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[8.5px] font-mono uppercase mb-1 font-bold text-slate-400">Bio & Details</label>
+                    <textarea
+                      value={profBio}
+                      onChange={(e) => setProfBio(e.target.value)}
+                      rows={2}
+                      placeholder="Describe your role or department..."
+                      className="w-full px-3 py-2 bg-slate-950 border border-white/10 rounded-xl text-xs text-white resize-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={profSaving || !profEmail}
+                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-45 text-white font-bold text-xs rounded-xl transition cursor-pointer"
+                  >
+                    {profSaving ? "Synchronizing..." : "Save Profile Changes"}
+                  </button>
+                </form>
+              )}
 
               {activeTab === "PASS" && (
                 <form onSubmit={handlePassUpdate} className="space-y-3">
