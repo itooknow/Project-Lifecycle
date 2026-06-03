@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  app-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: construction_ledger_app
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
